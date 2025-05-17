@@ -1,0 +1,73 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cek Resi Paket Aman - MR.M05T3R</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white">
+  <header class="text-center p-6 bg-gray-800 shadow-md">
+    <h1 class="text-3xl font-bold text-green-400">Cek Resi Paket Aman</h1>
+    <p class="text-sm">by MR.M05T3R - Proteksi API dan Log Aktif</p>
+  </header>
+
+  <main class="max-w-xl mx-auto p-6">
+    <label class="block text-sm font-semibold mt-4">Pilih Ekspedisi</label>
+    <select id="courier" class="w-full p-2 mt-1 rounded bg-gray-700">
+      <option value="jne">JNE</option>
+      <option value="jnt">J&T</option>
+      <option value="sicepat">SiCepat</option>
+      <option value="anteraja">AnterAja</option>
+      <option value="pos">POS Indonesia</option>
+    </select>
+
+    <label class="block text-sm font-semibold mt-4">Nomor Resi</label>
+    <input id="resi" class="w-full p-2 mt-1 rounded bg-gray-700" placeholder="Masukkan nomor resi">
+
+    <button onclick="cekResi()" class="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-2 mt-4 rounded">
+      Lacak Paket
+    </button>
+
+    <div id="hasil" class="mt-6 p-4 bg-gray-800 rounded shadow-inner min-h-[100px]">
+      Hasil tracking akan tampil di sini...
+    </div>
+  </main>
+
+  <footer class="text-center p-4 text-sm text-gray-500 bg-gray-800 mt-10">
+    &copy; 2025 MR.M05T3R - Secure Tracking System
+  </footer>
+
+  <script>
+    async function cekResi() {
+      const resi = document.getElementById('resi').value.trim();
+      const courier = document.getElementById('courier').value;
+      const hasil = document.getElementById('hasil');
+
+      if (!resi) {
+        hasil.textContent = 'Nomor resi tidak boleh kosong';
+        return;
+      }
+
+      hasil.textContent = 'Sedang memproses...';
+
+      try {
+        const res = await fetch(`/api/track?resi=${resi}&courier=${courier}`);
+        const data = await res.json();
+
+        if (data.status === 200) {
+          const info = data.data.summary;
+          const hist = data.data.history.map(h => `\n${h.date} - ${h.desc}`).join('');
+
+          hasil.textContent = `Ekspedisi: ${info.courier}\nNo Resi: ${info.awb}\nStatus: ${info.status}\nDikirim Oleh: ${info.shipper}\nTujuan: ${info.destination}\n===========================\nRiwayat:${hist}`;
+        } else {
+          hasil.textContent = 'Gagal melacak: ' + data.message;
+        }
+      } catch (err) {
+        hasil.textContent = 'Kesalahan: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
