@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cek Resi Paket Akurat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Fira Code', monospace;
+      background: #0d1117;
+      color: #c9d1d9;
+    }
+    header {
+      background: #161b22;
+      padding: 20px;
+      text-align: center;
+      font-size: 1.6em;
+      font-weight: bold;
+      color: #58a6ff;
+      box-shadow: 0 2px 5px rgba(0,255,255,0.2);
+    }
+    main {
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,255,255,0.08);
+    }
+    input, select, button, textarea {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background-color: #0d1117;
+      color: #fff;
+      font-size: 1em;
+    }
+    button {
+      background-color: #238636;
+      border: none;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: #2ea043;
+    }
+    #loader {
+      display: none;
+      text-align: center;
+      margin: 15px 0;
+    }
+    #result {
+      margin-top: 20px;
+      background: #0d1117;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #58a6ff;
+    }
+    .timeline {
+      list-style: none;
+      padding-left: 0;
+    }
+    .timeline li {
+      border-left: 2px solid #58a6ff;
+      margin-bottom: 10px;
+      padding-left: 10px;
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.8em;
+      color: #666;
+    }
+    h3 {
+      color: #58a6ff;
+      margin-top: 30px;
+    }
+  </style>
+  <script src="https://www.google.com/recaptcha/api.js?render=6LcOaT4rAAAAAEcX7MKLtUq0Ye1Gtu5uoyISSukC"></script>
+</head>
+<body>
+  <header>CEK RESI | PELACAKAN PAKET</header>
+  <main>
+    <label for="courier">Pilih Ekspedisi:</label>
+    <select id="courier">
+      <option value="jne">JNE</option>
+      <option value="jnt">J&T</option>
+      <option value="sicepat">SiCepat</option>
+      <option value="anteraja">AnterAja</option>
+      <option value="pos">POS Indonesia</option>
+    </select>
+
+    <label for="resi">Nomor Resi:</label>
+    <input type="text" id="resi" placeholder="Masukkan nomor resi..." />
+
+    <button onclick="submitForm()">Lacak Sekarang</button>
+    <div id="loader">Menghubungi server...</div>
+    <div id="result">Masukkan nomor resi untuk melacak paket Anda.</div>
+
+    <hr style="margin-top:40px; border-color:#30363d;" />
+    <h3>Butuh Bantuan atau Laporan?</h3>
+    <form id="contactForm">
+      <input type="text" id="nama" placeholder="Nama Anda" required>
+      <input type="email" id="email" placeholder="Email Anda" required>
+      <textarea id="pesan" placeholder="Tulis pesan atau laporan..." rows="4" required></textarea>
+      <button type="submit">Kirim ke Admin</button>
+    </form>
+  </main>
+  <footer>&copy; 2025 MR.M05T3R - Pelacakan Paket Akurat</footer>
+
+  <script>
+    function validateResi(input) {
+      return /^[a-zA-Z0-9]{8,30}$/.test(input);
+    }
+
+    async function submitForm() {
+      const waybill = document.getElementById("resi").value.trim();
+      const courier = document.getElementById("courier").value;
+      const result = document.getElementById("result");
+      const loader = document.getElementById("loader");
+
+      if (!validateResi(waybill)) {
+        result.innerHTML = "Format nomor resi tidak valid!";
+        return;
+      }
+
+      loader.style.display = "block";
+      result.innerHTML = "";
+
+      grecaptcha.ready(function () {
+        grecaptcha.execute('6LcOaT4rAAAAAEcX7MKLtUq0Ye1Gtu5uoyISSukC', { action: 'submit' }).then(async function (token) {
+          try {
+            const response = await fetch("cek-resi.php", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ waybill, courier, token })
+            });
+
+            const data = await response.json();
+            loader.style.display = "none";
+
+            if (data.status === 200 && data.data) {
+              const d = data.data;
+              let html = `<b>Status:</b> ${d.summary.status}<br>`;
+              html += `<b>Tanggal:</b> ${d.summary.date}<br>`;
+              html += `<b>Asal:</b> ${d.detail.origin}<br>`;
+              html += `<b>Tujuan:</b> ${d.detail.destination}<br>`;
+              html += `<b>Pengirim:</b> ${d.detail.shipper}<br>`;
+              html += `<b>Penerima:</b> ${d.detail.receiver}<br><br>`;
+              html += `<b>Riwayat Pengiriman:</b><ul class="timeline">`;
+              d.history.forEach(item => {
+                html += `<li><b>${item.date}</b><br>${item.desc} - <i>${item.location}</i></li>`;
+              });
+              html += `</ul>`;
+              result.innerHTML = html;
+
+              localStorage.setItem("last_tracking", JSON.stringify({ waybill, courier, html }));
+            } else {
+              result.innerHTML = "Resi tidak ditemukan atau salah.";
+            }
+          } catch (err) {
+            loader.style.display = "none";
+            result.innerHTML = "Terjadi kesalahan saat menghubungi server.";
+          }
+        });
+      });
+    }
+
+    window.onload = () => {
+      const last = localStorage.getItem("last_tracking");
+      if (last) {
+        const obj = JSON.parse(last);
+        document.getElementById("result").innerHTML = obj.html;
+      }
+    };
+
+    document.getElementById("contactForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const nama = document.getElementById("nama").value;
+      const email = document.getElementById("email").value;
+      const pesan = document.getElementById("pesan").value;
+
+      const emailBody = encodeURIComponent(`Nama: ${nama}\nEmail: ${email}\nPesan:\n${pesan}`);
+      const whatsappMessage = encodeURIComponent(`Halo Admin, saya ${nama} (${email}) ingin menyampaikan:\n${pesan}`);
+
+      const pilihan = confirm("Kirim lewat email (OK) atau WhatsApp (Cancel)?");
+
+      if (pilihan) {
+        window.location.href = `mailto:offcncs@gmail.com?subject=Pesan dari Pengguna Cek Resi&body=${emailBody}`;
+      } else {
+        window.open(`https://wa.me/6283846681933?text=${whatsappMessage}`, '_blank');
+      }
+    });
+  </script>
+</body>
+</html>
